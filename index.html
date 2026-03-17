@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spelling Adventure Hub!</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center; background-color: #f3e5f5; margin: 0; padding: 20px;
+    }
+    .app-container {
+      background-color: white; max-width: 650px; margin: 20px auto; padding: 30px;
+      border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: 5px solid #ab47bc;
+    }
+    h1 { color: #6a1b9a; font-size: 32px; margin-bottom: 10px; }
+    p.subtitle { color: #757575; font-size: 16px; margin-bottom: 30px; }
+    
+    /* Menu Styles */
+    .menu-btn {
+      display: block; width: 85%; margin: 15px auto; padding: 20px;
+      font-size: 22px; font-weight: bold; color: white; border: none;
+      border-radius: 15px; cursor: pointer; transition: 0.2s;
+    }
+    .btn-vowels { background-color: #ff9800; box-shadow: 0 6px 0 #e65100; }
+    .btn-mystery { background-color: #ec407a; box-shadow: 0 6px 0 #c2185b; }
+    .btn-scramble { background-color: #29b6f6; box-shadow: 0 6px 0 #0288d1; }
+    .menu-btn:active { transform: translateY(6px); box-shadow: none; }
+
+    /* Game UI Shared */
+    .hidden { display: none !important; }
+    .status-bar { display: flex; justify-content: space-between; align-items: center; font-weight: bold; color: #555; margin-bottom: 20px; font-size: 18px;}
+    .progress-text { color: #8e24aa; }
+    .hear-btn { background-color: #ffca28; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 16px; box-shadow: 0 3px 0 #ffb300;}
+    .hear-btn:active { transform: translateY(3px); box-shadow: none; }
+    
+    /* Timer Style */
+    .timer-display { color: #e53935; font-size: 24px; background: #ffebee; padding: 5px 15px; border-radius: 10px; border: 2px solid #ef9a9a;}
+
+    /* QWERTY Keyboard Styles */
+    .keyboard { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 20px; }
+    .key-row { display: flex; justify-content: center; gap: 6px; }
+    .key-btn { 
+      padding: 12px 14px; font-size: 20px; font-weight: bold; border-radius: 8px;
+      border: 2px solid #ccc; background: white; cursor: pointer; transition: 0.1s;
+      min-width: 45px;
+    }
+    .key-btn:active { background: #eee; transform: translateY(2px); }
+    .key-btn:disabled { background: #e0e0e0; color: #999; border-color: #eee; cursor: not-allowed; }
+    
+    /* Drag & Drop Specific Styles */
+    .key-btn.selected { background-color: #ffca28; border-color: #ffb300; transform: scale(1.1); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+    .drop-container { display: flex; justify-content: center; gap: 10px; margin: 30px 0; }
+    .drop-box { 
+      width: 45px; height: 55px; border-bottom: 5px solid #ccc; 
+      font-size: 36px; font-weight: bold; display: flex; align-items: center; justify-content: center; 
+      text-transform: uppercase; cursor: pointer; transition: 0.2s;
+    }
+    .drop-box.active-target { background-color: #fffde7; border-bottom-color: #ffca28; }
+    .drop-box.filled { border-bottom-color: #4caf50; color: #4caf50; cursor: default; }
+
+    /* Utility Keys */
+    .util-keys { display: flex; justify-content: center; gap: 10px; margin-top: 15px; }
+    .util-btn { padding: 12px 20px; font-size: 18px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; color: white;}
+    .backspace-btn { background-color: #9e9e9e; box-shadow: 0 4px 0 #757575; }
+    .submit-btn { background-color: #66bb6a; box-shadow: 0 4px 0 #388e3c; }
+    .util-btn:active { transform: translateY(4px); box-shadow: none; }
+
+    /* Display Areas */
+    .word-display { font-size: 40px; letter-spacing: 8px; margin: 20px 0; font-family: monospace; font-weight: bold; min-height: 50px;}
+    .scramble-prompt { font-size: 35px; letter-spacing: 5px; color: #ff9800; font-weight: bold; margin-bottom: 10px;}
+    .vowel-prompt { font-size: 24px; color: #e65100; font-weight: bold; margin-bottom: 10px;}
+    #livesDisplay { font-size: 28px; margin-bottom: 10px; }
+    .feedback { font-size: 22px; font-weight: bold; height: 30px; margin-top: 15px; }
+
+    /* Report */
+    #practiceReport { background-color: #fff3e0; border: 3px dashed #ffb300; border-radius: 15px; padding: 20px; margin-top: 25px; }
+    .home-btn { background-color: #9e9e9e; color: white; padding: 12px 25px; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px; font-weight: bold; font-size: 18px;}
+    .score-headline { font-size: 28px; margin: 10px 0; color: #333; }
+    #motivationalQuote { font-size: 20px; color: #1565c0; font-style: italic; font-weight: bold; margin: 15px 0; }
+  </style>
+</head>
+<body>
+
+  <audio id="failSound" src="https://www.myinstants.com/media/sounds/wrong-answer-sound-effect.mp3" preload="auto"></audio>
+  <audio id="yaySound" src="https://www.myinstants.com/media/sounds/kids_cheering.mp3" preload="auto"></audio>
+
+  <div class="app-container">
+    
+    <div id="mainMenu">
+      <h1>✨ Spelling Hub ✨</h1>
+      <p class="subtitle">Choose your challenge for today!</p>
+      <button class="menu-btn btn-vowels" onclick="startGame('vowels')">🕳️ The Vowel Void</button>
+      <button class="menu-btn btn-mystery" onclick="startGame('mystery')">🕵️‍♀️ Mystery Word</button>
+      <button class="menu-btn btn-scramble" onclick="startGame('scramble')">⌨️ Speed Scramble</button>
+    </div>
+
+    <div id="gameMystery" class="hidden">
+      <div class="status-bar">
+        <span class="progress-text">Word: <span id="mProgress"></span></span>
+        <button class="hear-btn" onclick="speakWord()">🔊 Hear Word</button>
+      </div>
+      <div id="livesDisplay">❤️❤️</div>
+      <div id="dropZoneContainer" class="drop-container"></div>
+      <div id="mFeedback" class="feedback"></div>
+      <div class="keyboard" id="mKeyboardArea"></div>
+    </div>
+
+    <div id="gameScramble" class="hidden">
+      <div class="status-bar">
+        <span class="progress-text">Word: <span id="sProgress"></span></span>
+        <span id="sTimerDisplay" class="timer-display">⏳ 30</span>
+        <button class="hear-btn" onclick="speakWord()">🔊 Hear Word</button>
+      </div>
+      <div id="scrambledPrompt" class="scramble-prompt"></div>
+      <div id="scrambleGuessDisplay" class="word-display" style="color: #29b6f6; border-bottom: 3px dashed #ccc; padding-bottom: 5px;"></div>
+      <div class="keyboard" id="sKeyboardArea"></div>
+      <div class="util-keys">
+        <button class="util-btn backspace-btn" onclick="handleBackspace('scramble')">⬅️ Undo</button>
+        <button class="util-btn submit-btn" onclick="checkScramble()">Check It!</button>
+      </div>
+      <div id="sFeedback" class="feedback"></div>
+    </div>
+
+    <div id="gameVowels" class="hidden">
+      <div class="status-bar">
+        <span class="progress-text">Word: <span id="vProgress"></span></span>
+        <button class="hear-btn" onclick="speakWord()">🔊 Hear Word</button>
+      </div>
+      <div class="vowel-prompt">Fill in the missing vowels!</div>
+      <div id="vowelWordDisplay" class="word-display" style="color: #ff9800;"></div>
+      <div class="keyboard" id="vKeyboardArea"></div>
+      <div class="util-keys">
+        <button class="util-btn backspace-btn" onclick="handleBackspace('vowels')">⬅️ Undo</button>
+        <button class="util-btn submit-btn" onclick="checkVowels()">Check It!</button>
+      </div>
+      <div id="vFeedback" class="feedback"></div>
+    </div>
+
+    <div id="practiceReport" class="hidden">
+      <h1 style="color: #e65100;">Test Complete! 🏆</h1>
+      <h2 class="score-headline">Score: <span id="scorePercentDisplay"></span>% (<span id="passFailDisplay"></span>)</h2>
+      
+      <p id="motivationalQuote" class="hidden"></p>
+
+      <h3>🎯 Needs Practice:</h3>
+      <p id="missedWordsList" style="font-size: 20px; font-weight: bold;"></p>
+      <button class="home-btn" onclick="location.reload()">🏠 Back to Menu</button>
+    </div>
+
+  </div>
+
+  <script>
+    // --- YOUR WORD LIST HERE ---
+    const originalWordList = ["beautiful", "science", "knowledge", "journey", "treasure", "mountain", "ocean", "favorite"];
+    
+    // Global State
+    let currentWords = [];
+    let currentWordIndex = 0;
+    let correctWord = "";
+    let missedWords = new Set();
+    let currentGameType = "";
+
+    // QWERTY Layout
+    const qwertyLayout = [
+      ["q","w","e","r","t","y","u","i","o","p"],
+      ["a","s","d","f","g","h","j","k","l"],
+      ["z","x","c","v","b","n","m"]
+    ];
+
+    function speakWord() {
+      let msg = new SpeechSynthesisUtterance(correctWord);
+      window.speechSynthesis.speak(msg);
+    }
+
+    function updateProgressUI() {
+      const progressText = `${currentWordIndex + 1} of ${currentWords.length}`;
+      document.getElementById('mProgress').innerText = progressText;
+      document.getElementById('sProgress').innerText = progressText;
+      document.getElementById('vProgress').innerText = progressText;
+    }
+
+    function startGame(type) {
+      currentGameType = type;
+      currentWords = [...originalWordList].sort(() => Math.random() - 0.5);
+      currentWordIndex = 0;
+      missedWords.clear();
+
+      document.getElementById('mainMenu').classList.add('hidden');
+      
+      if (type === 'mystery') {
+        document.getElementById('gameMystery').classList.remove('hidden');
+        loadMysteryWord();
+      } else if (type === 'scramble') {
+        document.getElementById('gameScramble').classList.remove('hidden');
+        loadScrambleWord();
+      } else if (type === 'vowels') {
+        document.getElementById('gameVowels').classList.remove('hidden');
+        loadVowelWord();
+      }
+    }
+
+    function playBuzzer() {
+      try { 
+        document.getElementById("failSound").currentTime = 0;
+        document.getElementById("failSound").play(); 
+      } catch(e) {}
+    }
+
+    function handleMissedWord(pushToBack) {
+      if (!missedWords.has(correctWord)) {
+        missedWords.add(correctWord);
+      }
+      if (pushToBack) {
+        currentWords.push(correctWord);
+        updateProgressUI(); 
+      }
+    }
+
+    function disableKeyboard(containerId) {
+      let keys = document.getElementById(containerId).getElementsByClassName('key-btn');
+      for(let key of keys) key.disabled = true;
+    }
+
+    function buildBasicKeyboard(containerId, clickHandler) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+      qwertyLayout.forEach(row => {
+        let rowDiv = document.createElement("div");
+        rowDiv.className = "key-row";
+        row.forEach(letter => {
+          let btn = document.createElement("button");
+          btn.innerText = letter.toUpperCase();
+          btn.className = "key-btn";
+          btn.onclick = () => clickHandler(letter, btn);
+          rowDiv.appendChild(btn);
+        });
+        container.appendChild(rowDiv);
+      });
+    }
+
+    // ==========================================
+    // GAME 1: MYSTERY WORD 
+    // ==========================================
+    let mysteryFilled = [];
+    let lives = 2; 
+    let currentlySelectedLetter = null;
+
+    function loadMysteryWord() {
+      if (currentWordIndex >= currentWords.length) return endGame();
+      
+      correctWord = currentWords[currentWordIndex].toLowerCase();
+      mysteryFilled = new Array(correctWord.length).fill(false);
+      lives = 2;
+      currentlySelectedLetter = null;
+      updateProgressUI();
+      document.getElementById('mFeedback').innerText = "";
+      
+      buildMysteryKeyboard();
+      updateMysteryDropZones();
+    }
+
+    function buildMysteryKeyboard() {
+      const container = document.getElementById('mKeyboardArea');
+      container.innerHTML = "";
+      
+      qwertyLayout.forEach(row => {
+        let rowDiv = document.createElement("div");
+        rowDiv.className = "key-row";
+        row.forEach(letter => {
+          let btn = document.createElement("button");
+          btn.innerText = letter.toUpperCase();
+          btn.className = "key-btn";
+          
+          btn.draggable = true;
+          btn.ondragstart = (e) => {
+            e.dataTransfer.setData("letter", letter);
+            currentlySelectedLetter = null; 
+            clearKeyboardSelection();
+          };
+
+          btn.onclick = () => {
+            clearKeyboardSelection();
+            currentlySelectedLetter = letter;
+            btn.classList.add('selected');
+          };
+
+          rowDiv.appendChild(btn);
+        });
+        container.appendChild(rowDiv);
+      });
+    }
+
+    function clearKeyboardSelection() {
+      document.querySelectorAll('#mKeyboardArea .key-btn').forEach(b => b.classList.remove('selected'));
+    }
+
+    function updateMysteryDropZones() {
+      let container = document.getElementById('dropZoneContainer');
+      container.innerHTML = "";
+      
+      for (let i = 0; i < correctWord.length; i++) {
+        let box = document.createElement('div');
+        box.className = 'drop-box';
+        
+        if (mysteryFilled[i]) {
+          box.innerText = correctWord[i];
+          box.classList.add('filled');
+        } else {
+          box.ondragover = (e) => { e.preventDefault(); box.classList.add('active-target'); };
+          box.ondragleave = (e) => { box.classList.remove('active-target'); };
+          box.ondrop = (e) => {
+            e.preventDefault();
+            box.classList.remove('active-target');
+            let droppedLetter = e.dataTransfer.getData("letter");
+            checkMysteryPlacement(droppedLetter, i);
+          };
+
+          box.onclick = () => {
+            if (currentlySelectedLetter) {
+              checkMysteryPlacement(currentlySelectedLetter, i);
+              currentlySelectedLetter = null;
+              clearKeyboardSelection();
+            }
+          };
+        }
+        container.appendChild(box);
+      }
+      document.getElementById('livesDisplay').innerText = "❤️".repeat(lives) + "🖤".repeat(2-lives);
+    }
+
+    function checkMysteryPlacement(letter, index) {
+      if (mysteryFilled[index]) return; 
+
+      let feedback = document.getElementById('mFeedback');
+
+      if (correctWord[index] === letter) {
+        mysteryFilled[index] = true;
+        updateMysteryDropZones();
+        
+        if (mysteryFilled.every(val => val === true)) {
+          feedback.innerText = "🎉 PERFECT! 🎉";
+          feedback.style.color = "green";
+          window.speechSynthesis.speak(new SpeechSynthesisUtterance("Great!"));
+          disableKeyboard('mKeyboardArea');
+          setTimeout(() => { currentWordIndex++; loadMysteryWord(); }, 1500);
+        } else {
+          feedback.innerText = "Good placement!";
+          feedback.style.color = "green";
+        }
+      } else {
+        lives--;
+        playBuzzer(); // Plays the loud buzzer
+        feedback.innerText = "Wrong spot!";
+        feedback.style.color = "red";
+        updateMysteryDropZones();
+
+        if (lives <= 0) {
+          feedback.innerText = "Out of tries! We'll try this one again later.";
+          handleMissedWord(true); 
+          disableKeyboard('mKeyboardArea');
+          setTimeout(() => { currentWordIndex++; loadMysteryWord(); }, 2500);
+        } else {
+          setTimeout(() => { if(feedback.innerText==="Wrong spot!") feedback.innerText = ""; }, 1500);
+        }
+      }
+    }
+
+    // ==========================================
+    // GAME 2: SPEED SCRAMBLE
+    // ==========================================
+    let scrambleGuess = "";
+    let scrambleTimerInterval;
+
+    function loadScrambleWord() {
+      if (currentWordIndex >= currentWords.length) return endGame();
+      
+      correctWord = currentWords[currentWordIndex].toLowerCase();
+      scrambleGuess = "";
+      updateProgressUI();
+      document.getElementById('sFeedback').innerText = "";
+      document.getElementById('scrambleGuessDisplay').innerText = "";
+
+      let letters = correctWord.split("");
+      for (let i = letters.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [letters[i], letters[j]] = [letters[j], letters[i]];
+      }
+      document.getElementById('scrambledPrompt').innerText = letters.join(" ").toUpperCase();
+      
+      buildBasicKeyboard('sKeyboardArea', (letter) => {
+        if(scrambleGuess.length < correctWord.length) {
+          scrambleGuess += letter;
+          document.getElementById('scrambleGuessDisplay').innerText = scrambleGuess.toUpperCase();
+        }
+      });
+
+      startScrambleTimer();
+    }
+
+    function startScrambleTimer() {
+      clearInterval(scrambleTimerInterval);
+      let timeLeft = 30;
+      document.getElementById('sTimerDisplay').innerText = `⏳ ${timeLeft}`;
+      
+      scrambleTimerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('sTimerDisplay').innerText = `⏳ ${timeLeft}`;
+        
+        if (timeLeft <= 0) {
+          clearInterval(scrambleTimerInterval);
+          handleScrambleTimeout();
+        }
+      }, 1000);
+    }
+
+    function handleScrambleTimeout() {
+      playBuzzer();
+      let feedback = document.getElementById('sFeedback');
+      feedback.innerText = "Time's up! Moving to the next word...";
+      feedback.style.color = "red";
+      disableKeyboard('sKeyboardArea');
+      handleMissedWord(false); 
+      setTimeout(() => { currentWordIndex++; loadScrambleWord(); }, 2000);
+    }
+
+    function checkScramble() {
+      if (scrambleGuess.length === 0) return;
+      let feedback = document.getElementById('sFeedback');
+      clearInterval(scrambleTimerInterval); 
+
+      if (scrambleGuess === correctWord) {
+        feedback.innerText = "🎉 AMAZING! 🎉";
+        feedback.style.color = "green";
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance("Awesome!"));
+        disableKeyboard('sKeyboardArea');
+        setTimeout(() => { currentWordIndex++; loadScrambleWord(); }, 1500);
+      } else {
+        feedback.innerText = "Not quite! Moving to the next word...";
+        feedback.style.color = "red";
+        playBuzzer();
+        disableKeyboard('sKeyboardArea');
+        handleMissedWord(false); 
+        setTimeout(() => { currentWordIndex++; loadScrambleWord(); }, 2000);
+      }
+    }
+
+    // ==========================================
+    // GAME 3: THE VOWEL VOID 
+    // ==========================================
+    let vowelGuess = "";
+    const vowels = ['a','e','i','o','u'];
+
+    function loadVowelWord() {
+      if (currentWordIndex >= currentWords.length) return endGame();
+      
+      correctWord = currentWords[currentWordIndex].toLowerCase();
+      vowelGuess = "";
+      updateProgressUI();
+      document.getElementById('vFeedback').innerText = "";
+      
+      buildBasicKeyboard('vKeyboardArea', (letter) => {
+        if(vowelGuess.length < correctWord.length) {
+          vowelGuess += letter;
+          updateVowelDisplay();
+        }
+      });
+      updateVowelDisplay();
+    }
+
+    function updateVowelDisplay() {
+      let display = "";
+      
+      for (let i = 0; i < correctWord.length; i++) {
+        let char = correctWord[i];
+        if (!vowels.includes(char)) {
+          display += char.toUpperCase() + " ";
+          if (vowelGuess.length === i) vowelGuess += char; 
+        } else {
+          if (i < vowelGuess.length) {
+            display += vowelGuess[i].toUpperCase() + " ";
+          } else {
+            display += "_ ";
+          }
+        }
+      }
+      document.getElementById('vowelWordDisplay').innerText = display.trim();
+    }
+
+    function checkVowels() {
+      let feedback = document.getElementById('vFeedback');
+      if (vowelGuess === correctWord) {
+        feedback.innerText = "🎉 BRILLIANT! 🎉";
+        feedback.style.color = "green";
+        window.speechSynthesis.speak(new SpeechSynthesisUtterance("Brilliant!"));
+        setTimeout(() => { currentWordIndex++; loadVowelWord(); }, 1500);
+      } else {
+        feedback.innerText = "Check your vowels! Try again.";
+        feedback.style.color = "red";
+        playBuzzer(); // Plays the loud buzzer
+        
+        if (!missedWords.has(correctWord)) { missedWords.add(correctWord); }
+        
+        vowelGuess = ""; 
+        updateVowelDisplay(); 
+      }
+    }
+
+    // ==========================================
+    // SHARED UTILITIES
+    // ==========================================
+    function handleBackspace(game) {
+      if (game === 'scramble' && scrambleGuess.length > 0) {
+        scrambleGuess = scrambleGuess.slice(0, -1);
+        document.getElementById('scrambleGuessDisplay').innerText = scrambleGuess.toUpperCase();
+      } else if (game === 'vowels' && vowelGuess.length > 0) {
+        while (vowelGuess.length > 0 && !vowels.includes(correctWord[vowelGuess.length - 1])) {
+            vowelGuess = vowelGuess.slice(0, -1);
+        }
+        vowelGuess = vowelGuess.slice(0, -1);
+        updateVowelDisplay();
+      }
+    }
+
+    function endGame() {
+      document.getElementById('gameMystery').classList.add('hidden');
+      document.getElementById('gameScramble').classList.add('hidden');
+      document.getElementById('gameVowels').classList.add('hidden');
+      document.getElementById('practiceReport').classList.remove('hidden');
+
+      // Calculate Final Percentage
+      let total = originalWordList.length;
+      let scoreNum = Math.round(((total - missedWords.size) / total) * 100);
+      
+      // Determine Pass/Fail (70% threshold)
+      let passed = scoreNum >= 70;
+      let passFail = passed ? "PASS! 🎉" : "Keep Practicing! 💪";
+      let passColor = passed ? "#4caf50" : "#e65100";
+
+      document.getElementById('scorePercentDisplay').innerText = scoreNum;
+      document.getElementById('passFailDisplay').innerText = passFail;
+      document.getElementById('passFailDisplay').style.color = passColor;
+
+      let missedText = missedWords.size > 0 ? Array.from(missedWords).join(", ") : "None! A perfect score! 🌟";
+      document.getElementById("missedWordsList").innerText = missedText;
+
+      // Handle the Audio / Visual Rewards!
+      const quoteEl = document.getElementById('motivationalQuote');
+      if (passed) {
+        quoteEl.classList.add('hidden'); // Hide quotes if they pass
+        try { document.getElementById("yaySound").play(); } catch(e) {}
+        confetti({ particleCount: 200, spread: 120, origin: { y: 0.6 } });
+      } else {
+        // Did not pass: Pick a random quote, no confetti/sound
+        const quotes = [
+          "Mistakes are proof that you are trying! 💡",
+          "Don't give up, you're getting smarter every day! 🧠",
+          "Keep practicing, you'll nail it next time! 🔨",
+          "Every expert was once a beginner! 🌱"
+        ];
+        quoteEl.innerText = quotes[Math.floor(Math.random() * quotes.length)];
+        quoteEl.classList.remove('hidden');
+      }
+
+      // ==========================================
+      // GOOGLE CHAT WEBHOOK - INSERT YOUR URL HERE
+      // ==========================================
+      const chatWebhookURL = "https://chat.googleapis.com/v1/spaces/AAQA6stRJYk/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=yyJ41A-YpTSrgJ0CWfjrMgTx8Gk7d-b182nXvClbsd8"; 
+      
+      const chatMessage = missedWords.size > 0 
+        ? `🎯 *Spelling Test Complete!*\nGame: ${currentGameType}\nScore: ${scoreNum}%\nWords to practice:\n${missedText}`
+        : `🌟 *Spelling Test Complete!*\nGame: ${currentGameType}\nScore: 100%\nPerfect score! No words missed.`;
+
+      fetch(chatWebhookURL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json; charset=UTF-8" },
+        body: JSON.stringify({ text: chatMessage })
+      }).catch(error => console.log("Webhook error (ignore if URL not added yet)", error));
+    }
+  </script>
+</body>
+</html>
